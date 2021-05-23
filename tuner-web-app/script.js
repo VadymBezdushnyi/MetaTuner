@@ -83,21 +83,44 @@ const handleSuccess = function(stream) {
     samples = new Float32Array(analyser.fftSize);
     pitch_detector = new PitchDetector(audioCtx.sampleRate);
 
+    console.log(audioCtx.sampleRate);
     source.connect(analyser);
     // track.connect(analyser);
     // analyser.connect(audioCtx.destination);
-
-    draw();
     estimations = new Float32Array();
+
+    
+    PitchTracker.init(audioCtx.sampleRate);
+    draw();
+    
 };
 
 
+function transferToHeap(arr) {
+   
+   }
+   function sumUp(arr) {
+    
+   }
+
 function draw() {
-    requestAnimationFrame(draw);
+    var id = requestAnimationFrame(draw);
 
     analyser.getFloatTimeDomainData(samples);
-    pitch_estimation = pitch_detector.process(samples);
+    
+    // console.log("Js:", samples[0], samples[1]);
+    {
+        var samples_ptr = Module._malloc(samples.length * samples.BYTES_PER_ELEMENT);
 
+        Module.HEAPF32.set(samples, samples_ptr / samples.BYTES_PER_ELEMENT);
+        pitch_estimation = PitchTracker.get_pitch(samples_ptr, samples.length);
+        if(pitch_estimation < 0) {
+            pitch_estimation = NaN;
+        }
+        Module._free(samples_ptr);
+    }
+
+    // cancelAnimationFrame(id);
     updateCanvas(pitch_estimation);
 }
 
