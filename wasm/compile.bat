@@ -1,4 +1,4 @@
-emcc ..\..\meta-tuner\src\pitch_tracker.cpp^
+emcc ..\meta-tuner\src\pitch_tracker.cpp^
  -o pitch_tracker.js^
  -O3^
  -s WASM=1^
