@@ -5,6 +5,7 @@ var analyser;
 var samples;
 var estimations;
 var pitch_detector;
+var samples_ptr;
 
 class PitchDetector {
     constructor(sample_rate){
@@ -75,7 +76,7 @@ const handleSuccess = function(stream) {
     
     // pass it into the audio context
     const audioElement = document.querySelector('audio');
-    const track = audioCtx.createMediaElementSource(audioElement);
+    // const track = audioCtx.createMediaElementSource(audioElement);
 
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 4096;
@@ -91,34 +92,23 @@ const handleSuccess = function(stream) {
 
     
     PitchTracker.init(audioCtx.sampleRate);
+    samples_ptr = Module._malloc(samples.length * samples.BYTES_PER_ELEMENT);
+
     draw();
     
 };
-
-
-function transferToHeap(arr) {
-   
-   }
-   function sumUp(arr) {
-    
-   }
 
 function draw() {
     var id = requestAnimationFrame(draw);
 
     analyser.getFloatTimeDomainData(samples);
     
-    // console.log("Js:", samples[0], samples[1]);
-    {
-        var samples_ptr = Module._malloc(samples.length * samples.BYTES_PER_ELEMENT);
-
-        Module.HEAPF32.set(samples, samples_ptr / samples.BYTES_PER_ELEMENT);
-        pitch_estimation = PitchTracker.get_pitch(samples_ptr, samples.length);
-        if(pitch_estimation < 0) {
-            pitch_estimation = NaN;
-        }
-        Module._free(samples_ptr);
+    Module.HEAPF32.set(samples, samples_ptr / samples.BYTES_PER_ELEMENT);
+    pitch_estimation = PitchTracker.get_pitch(samples_ptr, samples.length);
+    if(pitch_estimation < 0) {
+        pitch_estimation = NaN;
     }
+
 
     // cancelAnimationFrame(id);
     updateCanvas(pitch_estimation);
@@ -130,6 +120,7 @@ var ring_buffer = new Float32Array(max_visible_estimations);
 var ring_size = 0;
 var ring_pos = 0;
 
+const notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
 function GetNearestNoteAndCents(freq){
     const A4 = 440.0;
     const nearest_freq = A4 * (Math.pow(2, (Math.round(12 * Math.log2(freq / A4)) / 12)));   
@@ -139,7 +130,6 @@ function GetNearestNoteAndCents(freq){
     const octave = Math.floor((note_distance + 9) / 12 + 4); // octave starts from C
     const note_in_octave = (note_distance % 12 + 12) % 12;
     
-    const notes = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
     const cents = Math.round(1200 * Math.log2(freq / nearest_freq));
     return [notes[note_in_octave] + octave.toString(), cents];
 }    
@@ -152,6 +142,8 @@ function updateCanvas(pitch_estimation) {
     ring_buffer[ring_pos] = pitch_estimation;
     
     // console.log(pitch_estimation);
+    canvasCtx.lineCap = 'round';
+    canvasCtx.lineJoin = 'round';
     canvasCtx.fillStyle = "rgb(230, 230, 250)";
     canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -166,8 +158,9 @@ function updateCanvas(pitch_estimation) {
     var ring_buffer_offset = Math.max(max_visible_estimations - ring_size, 0);
 
     var sliceWidth = plot_width * 1.0 / max_visible_estimations;
+    const min_freq = 70.0, max_freq = 700.0;
     for (var i = 0; i < ring_size; i++) {
-        const min_freq = 70.0, max_freq = 700.0;
+        
 
         var pos = i;
         if(ring_size === max_visible_estimations) {
@@ -201,7 +194,6 @@ function updateCanvas(pitch_estimation) {
     }
 
 
-
     if(isNaN(pitch_estimation)) {
         return;
     }
@@ -218,8 +210,9 @@ function updateCanvas(pitch_estimation) {
     canvasCtx.strokeText(cents, note_X, note_Y + 40);
 
     // draw note box
+    const freq_y = (pitch_estimation - min_freq) / (max_freq - min_freq); 
     const color = (1 - Math.abs(cents / 50)) * 120;
-    canvasCtx.fillStyle = 'hsl('+color+', 100%, 50%)';
+    canvasCtx.fillStyle = 'hsl('+color+', 80%, 50%)';
     const note_box_width = 20;
     const note_box_height = -(cents / 50) * canvas.height/2;
 

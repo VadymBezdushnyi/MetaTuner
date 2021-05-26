@@ -4,6 +4,9 @@
 
 extern "C" {
 
+const int kMaxFreq = 800;
+double auto_corr[kMaxFreq+1];
+
 struct pitch_tracker_t{
     uint32_t sample_rate = 0;
 } pitch_tracker;
@@ -12,13 +15,14 @@ void init_pitch_tracker(uint32_t sample_rate) {
     pitch_tracker.sample_rate = sample_rate;
 }
 
-double get_pitch(float* samples, uint32_t sample_size) {
-    // printf("C++: %g, %g %u\n", samples[0], samples[1], sample_size);
-    // printf("Rate: %d, buffer size: %d\n", pitch_tracker.sample_rate, sample_size);
-    // return 440.5 + samples[0] + samples[1];
-    
-    
-    const double BEST_RES_THRESHOLD = 1.0; // 0.8
+double interpolate_parabola(double a, double b, double c) {
+  const double denom = a - 2 * b + c;
+  if (denom == 0) return 0;
+  return (a - c) / denom / 2;
+}
+
+double get_pitch(float* samples, uint32_t sample_size) {   
+    const double BEST_RES_THRESHOLD = 0.95;
     const uint32_t N = sample_size; 
 
     uint32_t best_k = -1;
@@ -35,28 +39,27 @@ double get_pitch(float* samples, uint32_t sample_size) {
         return -1;
     } 
 
-    const uint32_t maxK = std::min(sample_size, uint32_t(700));
-    for(uint32_t k = 60; k < 700; k++) {
+    for(uint32_t k = 60; k < kMaxFreq; k++) {
         double sum = 0;
         for(uint32_t i = 0; i < N - k; i++) {
             sum += (double)samples[i] * samples[i + k];
         }
         sum /= N;
+        auto_corr[k] = sum;
 
         if(sum > best_res) {
             best_k = k;
             best_res = sum;
-        }
-
-        if(best_res > BEST_RES_THRESHOLD){
-            break;
         }
     }
 
     if(best_k == -1) {
         return -1;
     }
-    return pitch_tracker.sample_rate / best_k;
+
+    double adjusted_value = best_k + interpolate_parabola(auto_corr[best_k-1], auto_corr[best_k], auto_corr[best_k+1]);
+
+    return pitch_tracker.sample_rate / adjusted_value;
 }
 
 }
