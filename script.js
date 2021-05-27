@@ -66,7 +66,9 @@ window.onload = function() {
             noiseSuppression: false,
             audioGainControl: false,
         }
-    , video: false }).then(handleSuccess);    
+    , video: false }).then(handleSuccess).catch(function(err) {
+        alert("Please allow to process data from your microphone");
+    });    
 }
 
 const handleSuccess = function(stream) {
@@ -90,15 +92,17 @@ const handleSuccess = function(stream) {
     estimations = new Float32Array();
 
     
-    PitchTracker.init(audioCtx.sampleRate);
-    samples_ptr = Module._malloc(samples.length * samples.BYTES_PER_ELEMENT);
-
-
     canvas.addEventListener("mousewheel", zoom, false);
     canvas.addEventListener("mousedown", setMouseDown, false);
     canvas.addEventListener("mouseup", setMouseUp, false);
     canvas.addEventListener("mousemove", move, false);
+
+    
+    PitchTracker.init(audioCtx.sampleRate);
+    samples_ptr = Module._malloc(samples.length * samples.BYTES_PER_ELEMENT);
+
     draw();
+
     
 };
 
@@ -325,22 +329,29 @@ function updateCanvas(pitch_estimation) {
 
 
     const std_var_size = 5;
-    var std_var = 0;
+    var last_k_notes = []
     for (var i = ring_size - std_var_size - 1; i < ring_size - 1; i++) {
         var pos = i;
         if(ring_size === max_visible_estimations) {
             pos = (ring_pos + 1 + i) % max_visible_estimations;
         }
         if(isNaN(ring_buffer[pos])) {
-            std_var = NaN;
+            last_k_notes.push(NaN);
+        } else {
+            const note = 12 * Math.log2(ring_buffer[pos] / A4)
+            last_k_notes.push(note); 
         }
-        std_var += ring_buffer[pos] * ring_buffer[pos];
     }
 
 
-
-    const std_var_threshold = 250;
+    const std_var_threshold = 0.5;
+    var std_var = 0;
+    const avg = last_k_notes.reduce((a, b) => a + b, 0) / last_k_notes.length;
+    for(var i =0; i < last_k_notes.length; i++) {
+        std_var += Math.pow(last_k_notes[i] - avg, 2);
+    }
     std_var = Math.sqrt(std_var / std_var_size);
+    // console.log(std_var);
     if(isNaN(std_var) || std_var > std_var_threshold) {
         return;
     }
