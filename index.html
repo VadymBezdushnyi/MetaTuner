@@ -4,16 +4,22 @@
     <meta charset="utf-8">
     <title>MetaTuner</title>
     <link href="style.css" rel="stylesheet" />
-    
+    <style>
+        #visualizer {
+            position: absolute;
+            /* width: 100%; */
+            /* height: 80%; */
+        }
+    </style>
 </head>
 <body>
-    <h1>Meta Tuner</h1>
-    <!-- <audio controls src="D_ac.wav"></audio> -->
+    <!-- <h1>Meta Tuner</h1>
+    <audio controls src="D_ac.wav"></audio> -->
     <br>
     <script src="wasm/pitch_tracker.js"></script>
     <script src="wasm/wasm_api.js"></script>
     <script src="script.js"></script>
-    <canvas id="visualizer" width="640" height="640"></canvas>  
+    <canvas id="visualizer" width="800" height="800"></canvas>      
 </body>
 </html>
 

@@ -16,9 +16,9 @@ void init_pitch_tracker(uint32_t sample_rate) {
 }
 
 double interpolate_parabola(double a, double b, double c) {
-  const double denom = a - 2 * b + c;
-  if (denom == 0) return 0;
-  return (a - c) / denom / 2;
+  const double den = a - 2 * b + c;
+  if (den == 0) return 0;
+  return (a - c) / 2 / den;
 }
 
 double get_pitch(float* samples, uint32_t sample_size) {   
@@ -28,7 +28,6 @@ double get_pitch(float* samples, uint32_t sample_size) {
     uint32_t best_k = -1;
     double best_res = 0;
     
-
     double rms = 0;
     for(uint32_t i = 0; i < N; i++) {
         rms += (double)samples[i] * samples[i];
